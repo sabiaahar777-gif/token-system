@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <title>6-Digit Token System</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; display: flex; justify-content: center; padding-top: 50px; }
+        .box { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); width: 350px; text-align: center; }
+        input, select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin: 5px 0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; font-size: 18px; }
+        .btn-grey { background: #6c757d; color: white; }
+        #tokenView { font-size: 50px; font-weight: bold; color: #d9534f; margin: 20px 0; font-family: monospace; }
+        .history-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+        .history-table th, .history-table td { border: 1px solid #ddd; padding: 5px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <div id="loginPage">
+        <h3>Company Login</h3>
+        <input type="text" id="cName" placeholder="Company Name (First time only)">
+        <input type="text" id="uName" placeholder="Username">
+        <input type="password" id="pWord" placeholder="Password">
+        <button class="btn-blue" onclick="login()">Login / Register</button>
+    </div>
+
+    <div id="dashPage" class="hidden">
+        <h2 id="title">Company</h2>
+        <hr>
+        <label>Service Type:</label>
+        <select id="service">
+            <option>General</option>
+            <option>Repairing</option>
+            <option>Billing</option>
+            <option>Urgent</option>
+        </select>
+        
+        <div id="tokenView">000000</div>
+        
+        <button class="btn-green" onclick="generate()">NEXT TOKEN</button>
+        <button class="btn-blue" onclick="printTkt()">PRINT TICKET</button>
+        <button class="btn-grey" onclick="showHistory()">TOKEN LIST</button>
+        <button onclick="location.reload()" style="background:none; color:red; border:none; margin-top:10px;">Logout</button>
+
+        <div id="listArea" class="hidden">
+            <table class="history-table">
+                <thead><tr><th>No.</th><th>Type</th></tr></thead>
+                <tbody id="historyBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('tokenDB')) || {};
+    let currentUser = null;
+
+    function login() {
+        let u = document.getElementById('uName').value;
+        let p = document.getElementById('pWord').value;
+        let c = document.getElementById('cName').value;
+
+        if(!u || !p) return alert("Username aur Password daalein!");
+
+        if(db[u]) {
+            if(db[u].pass === p) {
+                currentUser = u;
+                start();
+            } else { alert("Galat Password!"); }
+        } else {
+            if(!c) return alert("Nayi company ke liye Company Name zaruri hai!");
+            db[u] = { pass: p, company: c, last: 0, list: [] };
+            localStorage.setItem('tokenDB', JSON.stringify(db));
+            currentUser = u;
+            start();
+        }
+    }
+
+    function start() {
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('dashPage').classList.remove('hidden');
+        document.getElementById('title').innerText = db[currentUser].company;
+        updateUI();
+    }
+
+    function generate() {
+        db[currentUser].last += 1;
+        let type = document.getElementById('service').value;
+        let num = String(db[currentUser].last).padStart(6, '0');
+        
+        db[currentUser].list.unshift({num: num, type: type, time: new Date().toLocaleTimeString()});
+        localStorage.setItem('tokenDB', JSON.stringify(db));
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('tokenView').innerText = String(db[currentUser].last).padStart(6, '0');
+        let html = '';
+        db[currentUser].list.forEach(i => {
+            html += `<tr><td>${i.num}</td><td>${i.type}</td></tr>`;
+        });
+        document.getElementById('historyBody').innerHTML = html;
+    }
+
+    function showHistory() {
+        let area = document.getElementById('listArea');
+        area.classList.toggle('hidden');
+    }
+
+    function printTkt() {
+        let user = db[currentUser];
+        if(user.last === 0) return alert("Pehle token generate karein!");
+        
+        let num = String(user.last).padStart(6, '0');
+        let comp = user.company;
+        let serv = user.list[0].type;
+
+        let w = window.open('', '', 'width=300,height=400');
+        w.document.write(`
+            <html><body style="text-align:center; font-family:monospace; width:200px;">
+                <h3 style="margin:0">${comp}</h3>
+                <p style="border-bottom:1px dashed #000; margin:5px 0;"></p>
+                <div style="font-size:12px;">TOKEN NUMBER</div>
+                <div style="font-size:35px; font-weight:bold; border:1px solid #000; margin:5px 0;">${num}</div>
+                <div style="background:#000; color:#fff; font-size:14px; padding:2px;">${serv}</div>
+                <p style="font-size:10px;">${new Date().toLocaleString()}</p>
+                <p>Wait for your turn</p>
+            </body></html>
+        `);
+        w.print();
+        w.close();
+    }
+</script>
+</body>
+</html>
